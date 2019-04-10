@@ -3,6 +3,7 @@ package site.zido.rpc.core.extensions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import site.zido.rpc.utils.*;
+import site.zido.rpc.utils.values.Holder;
 import site.zido.rpc.utils.values.VolHolder;
 
 import java.io.BufferedReader;
@@ -17,7 +18,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 
 /**
- * load mini rpc extensions
+ * load rpc rpc extensions
  *
  * @author zido
  */
@@ -26,7 +27,7 @@ public class ExtensionLoader<T> {
 
     private static final String PATH_PREFIX = "META-INF/extensions/";
 
-    private static final String MINI_DIRECTORY = "META-INF/mini";
+    private static final String MINI_DIRECTORY = "META-INF/rpc";
 
     private static final Pattern NAME_SEPARATOR = Pattern.compile("\\s*[,]+\\s*");
 
@@ -113,6 +114,60 @@ public class ExtensionLoader<T> {
         return (T) instance;
     }
 
+    public T getDefaultExtension(){
+        getExtensionClasses();
+        if(StringUtils.isBlank(cachedDefaultName) || "true".equals(cachedDefaultName)){
+            return null;
+        }
+        return getExtension(cachedDefaultName);
+    }
+
+    @SuppressWarnings("unchecked")
+    private T getExtension(String name) {
+        if(StringUtils.isEmpty(name)){
+            throw new IllegalArgumentException("Extension name == null");
+        }
+        if("true".equals(name)){
+            return getDefaultExtension();
+        }
+        Holder<Object> holder = getOrCreateHolder(name);
+        Object instance = holder.get();
+        if(instance == null){
+            instance = holder.get();
+            if(instance == null){
+                instance = createExtension(name);
+                holder.set(instance);
+            }
+        }
+        return (T) instance;
+    }
+
+    private Object createExtension(String name) {
+        Class<?> clazz = getExtensionClasses().get(name);
+        if(clazz == null){
+            throw findException(name);
+        }
+        return null;
+    }
+
+    private IllegalStateException findException(String name) {
+        for (Map.Entry<String, IllegalStateException> entry : exceptions.entrySet()) {
+            if(entry.getKey().toLowerCase().contains(name.toLowerCase())){
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private Holder<Object> getOrCreateHolder(String name) {
+        Holder<Object> holder = cachedInstances.get(name);
+        if(holder == null){
+            cachedInstances.putIfAbsent(name,new VolHolder<>());
+            holder = cachedInstances.get(name);
+        }
+        return holder;
+    }
+
     private T createAdaptiveExtension() {
         return injectExtension(getAdaptiveExtension());
     }
@@ -127,6 +182,7 @@ public class ExtensionLoader<T> {
 
     private Class<?> createAdaptiveExtensionClass() {
         //TODO create adaptive extension class
+
         return null;
     }
 
@@ -147,7 +203,7 @@ public class ExtensionLoader<T> {
     private Map<String, Class<?>> loadExtensionClasses() {
         cacheDefaultExtensionName();
 
-        Map<String, Class<?>> extensionClasses = new HashMap<>();
+        Map<String, Class<?>> extensionClasses = new HashMap<>(6);
         loadDirectory(extensionClasses, PATH_PREFIX);
         loadDirectory(extensionClasses,MINI_DIRECTORY);
         return extensionClasses;

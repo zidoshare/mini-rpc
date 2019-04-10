@@ -23,25 +23,25 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-all</artifactId>
-                <version>${netty.version}</version>
+                <version>4.1.12.Final</version>
             </dependency>
 
             <!--serialization-->
             <dependency>
                 <groupId>com.dyuproject.protostuff</groupId>
                 <artifactId>protostuff-core</artifactId>
-                <version>${protostuff.version}</version>
+                <version>1.0.12</version>
             </dependency>
             <dependency>
                 <groupId>com.dyuproject.protostuff</groupId>
                 <artifactId>protostuff-runtime</artifactId>
-                <version>${protostuff.version}</version>
+                <version>1.0.12</version>
             </dependency>
 
             <dependency>
                 <groupId>org.objenesis</groupId>
                 <artifactId>objenesis</artifactId>
-                <version>${objenesis.version}</version>
+                <version>2.5.1</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
@@ -54,6 +54,12 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>1.7.25</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
     <build>

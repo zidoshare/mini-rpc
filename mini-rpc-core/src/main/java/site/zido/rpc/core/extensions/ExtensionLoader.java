@@ -43,20 +43,19 @@ public class ExtensionLoader<T> {
     private final Map<String, Object> cachedActivates = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, VolHolder<Object>> cachedInstances = new ConcurrentHashMap<>();
     private final VolHolder<Object> cachedAdaptiveInstance = new VolHolder<>();
+    private final ClassLoader classLoader;
     private volatile Class<?> cachedAdaptiveClass = null;
     private String cachedDefaultName;
     private volatile Throwable createAdaptiveInstanceError;
-    private final ClassLoader classLoader;
-
     private Set<Class<?>> cachedWrapperClasses;
 
     private Map<String, IllegalStateException> exceptions = new ConcurrentHashMap<>();
 
     private ExtensionLoader(Class<?> type) {
-        this(type,ClassUtils.getClassLoader(type));
+        this(type, ClassUtils.getClassLoader(type));
     }
 
-    private ExtensionLoader(Class<?> type,ClassLoader classLoader){
+    private ExtensionLoader(Class<?> type, ClassLoader classLoader) {
         this.type = type;
         this.classLoader = classLoader;
         this.objectFactory = (type == ExtensionFactory.class ? null : ExtensionLoader.getExtensionLoader(ExtensionFactory.class).getAdaptiveExtension());
@@ -114,9 +113,9 @@ public class ExtensionLoader<T> {
         return (T) instance;
     }
 
-    public T getDefaultExtension(){
+    public T getDefaultExtension() {
         getExtensionClasses();
-        if(StringUtils.isBlank(cachedDefaultName) || "true".equals(cachedDefaultName)){
+        if (StringUtils.isBlank(cachedDefaultName) || "true".equals(cachedDefaultName)) {
             return null;
         }
         return getExtension(cachedDefaultName);
@@ -124,17 +123,17 @@ public class ExtensionLoader<T> {
 
     @SuppressWarnings("unchecked")
     private T getExtension(String name) {
-        if(StringUtils.isEmpty(name)){
+        if (StringUtils.isEmpty(name)) {
             throw new IllegalArgumentException("Extension name == null");
         }
-        if("true".equals(name)){
+        if ("true".equals(name)) {
             return getDefaultExtension();
         }
         Holder<Object> holder = getOrCreateHolder(name);
         Object instance = holder.get();
-        if(instance == null){
+        if (instance == null) {
             instance = holder.get();
-            if(instance == null){
+            if (instance == null) {
                 instance = createExtension(name);
                 holder.set(instance);
             }
@@ -142,17 +141,35 @@ public class ExtensionLoader<T> {
         return (T) instance;
     }
 
+    @SuppressWarnings("unchecked")
     private Object createExtension(String name) {
         Class<?> clazz = getExtensionClasses().get(name);
-        if(clazz == null){
-            throw findException(name);
+        if (clazz == null) {
+            throw new IllegalStateException("no such extension: " + name);
         }
-        return null;
+        try {
+            T instance = (T) EXTENSION_INSTANCES.get(clazz);
+            if (instance == null) {
+                EXTENSION_INSTANCES.putIfAbsent(clazz, clazz.newInstance());
+                instance = (T) EXTENSION_INSTANCES.get(clazz);
+            }
+            injectExtension(instance);
+            Set<Class<?>> wrapperClasses = cachedWrapperClasses;
+            if (CollectionUtils.isNotEmpty(wrapperClasses)) {
+                for (Class<?> wrapperClass : wrapperClasses) {
+                    instance = injectExtension((T) wrapperClass.getConstructor(type).newInstance(instance));
+                }
+            }
+            return instance;
+        } catch (Throwable t) {
+            throw new IllegalStateException("Extension instance (name: " + name + ", class: " +
+                    type + ") couldn't be instantiated: " + t.getMessage(), t);
+        }
     }
 
     private IllegalStateException findException(String name) {
         for (Map.Entry<String, IllegalStateException> entry : exceptions.entrySet()) {
-            if(entry.getKey().toLowerCase().contains(name.toLowerCase())){
+            if (entry.getKey().toLowerCase().contains(name.toLowerCase())) {
                 return entry.getValue();
             }
         }
@@ -161,15 +178,20 @@ public class ExtensionLoader<T> {
 
     private Holder<Object> getOrCreateHolder(String name) {
         Holder<Object> holder = cachedInstances.get(name);
-        if(holder == null){
-            cachedInstances.putIfAbsent(name,new VolHolder<>());
+        if (holder == null) {
+            cachedInstances.putIfAbsent(name, new VolHolder<>());
             holder = cachedInstances.get(name);
         }
         return holder;
     }
 
+    @SuppressWarnings("unchecked")
     private T createAdaptiveExtension() {
-        return injectExtension(getAdaptiveExtension());
+        try {
+            return injectExtension((T) getAdaptiveExtensionClass().newInstance());
+        } catch (InstantiationException | IllegalAccessException e) {
+            throw new IllegalStateException("Can't create adaptive extension " + type + ", cause" + e.getMessage(), e);
+        }
     }
 
     private Class<?> getAdaptiveExtensionClass() {
@@ -205,7 +227,7 @@ public class ExtensionLoader<T> {
 
         Map<String, Class<?>> extensionClasses = new HashMap<>(6);
         loadDirectory(extensionClasses, PATH_PREFIX);
-        loadDirectory(extensionClasses,MINI_DIRECTORY);
+        loadDirectory(extensionClasses, MINI_DIRECTORY);
         return extensionClasses;
     }
 
@@ -412,5 +434,10 @@ public class ExtensionLoader<T> {
         return method.getName().startsWith("set")
                 && method.getParameterTypes().length == 1
                 && Modifier.isPublic(method.getModifiers());
+    }
+
+    public String getDefaultExtensionName() {
+        getExtensionClasses();
+        return cachedDefaultName;
     }
 }

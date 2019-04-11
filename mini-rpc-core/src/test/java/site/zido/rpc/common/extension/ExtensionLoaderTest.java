@@ -3,7 +3,10 @@ package site.zido.rpc.common.extension;
 import org.junit.Assert;
 import org.junit.Test;
 import site.zido.rpc.common.extension.demo.ext1.SimpleExt;
+import site.zido.rpc.common.extension.demo.ext1.impl.SimpleExtImpl1;
 import site.zido.rpc.core.extensions.ExtensionLoader;
+
+import static org.hamcrest.CoreMatchers.instanceOf;
 
 public class ExtensionLoaderTest {
     @Test
@@ -41,6 +44,9 @@ public class ExtensionLoaderTest {
 
     @Test
     public void testGetDefaultExtension(){
-//        SimpleExt ext = ExtensionLoader.getExtensionLoader(SimpleExt.class);
+        SimpleExt ext = ExtensionLoader.getExtensionLoader(SimpleExt.class).getDefaultExtension();
+        Assert.assertThat(ext,instanceOf(SimpleExtImpl1.class));
+        String name = ExtensionLoader.getExtensionLoader(SimpleExt.class).getDefaultExtensionName();
+        Assert.assertEquals("impl1",name);
     }
 }
